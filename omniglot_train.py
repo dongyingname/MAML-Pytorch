@@ -1,12 +1,11 @@
-import  torch, os
-import  numpy as np
-from    omniglotNShot import OmniglotNShot
-import  argparse
+import torch, os
+import numpy as np
+from omniglotNShot import OmniglotNShot
+import argparse
 
-from    meta import Meta
+from meta import Meta
 
 def main(args):
-
     torch.manual_seed(222)
     torch.cuda.manual_seed_all(222)
     np.random.seed(222)
@@ -30,7 +29,11 @@ def main(args):
         ('linear', [args.n_way, 64])
     ]
 
-    device = torch.device('cuda')
+    # device = torch.device('cuda')
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+    else:
+        device = torch.device("cpu")
     maml = Meta(args, config).to(device)
 
     tmp = filter(lambda x: x.requires_grad, maml.parameters())
@@ -39,11 +42,11 @@ def main(args):
     print('Total trainable tensors:', num)
 
     db_train = OmniglotNShot('omniglot',
-                       batchsz=args.task_num,
-                       n_way=args.n_way,
-                       k_shot=args.k_spt,
-                       k_query=args.k_qry,
-                       imgsz=args.imgsz)
+                             batchsz=args.task_num,
+                             n_way=args.n_way,
+                             k_shot=args.k_spt,
+                             k_query=args.k_qry,
+                             imgsz=args.imgsz)
 
     for step in range(args.epoch):
 
@@ -59,7 +62,7 @@ def main(args):
 
         if step % 500 == 0:
             accs = []
-            for _ in range(1000//args.task_num):
+            for _ in range(1000 // args.task_num):
                 # test
                 x_spt, y_spt, x_qry, y_qry = db_train.next('test')
                 x_spt, y_spt, x_qry, y_qry = torch.from_numpy(x_spt).to(device), torch.from_numpy(y_spt).to(device), \
@@ -68,15 +71,13 @@ def main(args):
                 # split to single task each time
                 for x_spt_one, y_spt_one, x_qry_one, y_qry_one in zip(x_spt, y_spt, x_qry, y_qry):
                     test_acc = maml.finetunning(x_spt_one, y_spt_one, x_qry_one, y_qry_one)
-                    accs.append( test_acc )
+                    accs.append(test_acc)
 
             # [b, update_step+1]
             accs = np.array(accs).mean(axis=0).astype(np.float16)
             print('Test acc:', accs)
 
-
 if __name__ == '__main__':
-
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--epoch', type=int, help='epoch number', default=40000)
     argparser.add_argument('--n_way', type=int, help='n way', default=5)
