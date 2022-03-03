@@ -29,12 +29,16 @@ def main(args):
         ('linear', [args.n_way, 64])
     ]
 
-    # device = torch.device('cuda')
-    if torch.cuda.is_available():
-        device = torch.device("cuda:0")
-    else:
-        device = torch.device("cpu")
-    maml = Meta(args, config).to(device)
+    device = torch.device('cuda:0')
+    ####
+    # if torch.cuda.is_available():
+    #     device = torch.device("cuda:0")
+    # else:
+    #     device = torch.device("cpu")
+    ####
+    # maml = Meta(args, config).to(device)
+    maml = Meta(args, config).type(torch.FloatTensor).to(device)
+    # maml=maml.to(torch.double)
 
     tmp = filter(lambda x: x.requires_grad, maml.parameters())
     num = sum(map(lambda x: np.prod(x.shape), tmp))
